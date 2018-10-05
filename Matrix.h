@@ -52,6 +52,9 @@ public:
 	bool SetConjugateTranspose( const Matrix& matrix );
 	bool GetConjugateTranspose( Matrix& matrix ) const;
 
+	void Transpose( void );
+	void ConjugateTranspose( void );
+
 	bool SetInverse( const Matrix& matrix, bool pseudo = false );
 	bool GetInverse( Matrix& matrix, bool pseudo = false ) const;
 
@@ -68,6 +71,9 @@ public:
 	bool SetProduct( const Matrix& lMatrix, const Matrix& rMatrix );
 	bool SetSum( const Matrix& lMatrix, const Matrix& rMatrix );
 	bool SetScale( const Matrix& matrix, const Element* element );
+
+	bool MultiplyOnRight( const Matrix& rMatrix );
+	bool MultiplyOnLeft( const Matrix& lMatrix );
 
 	void RowReduce( RowOperationList& rowOperationList, bool fullyReduce = true );
 	bool ApplyRowOperations( const RowOperationList& rowOperationList );

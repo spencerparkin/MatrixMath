@@ -176,6 +176,38 @@ bool MatrixMath::Matrix::GetConjugateTranspose( Matrix& matrix ) const
 	return matrix.SetConjugateTranspose( *this );
 }
 
+void MatrixMath::Matrix::Transpose( void )
+{
+	if( IsSquare() )
+	{
+		for( int i = 0; i < rows; i++ )
+		{
+			for( int j = 0; j < cols; j++ )
+			{
+				if( i != j )
+				{
+					Element* element = elementArray[i][j];
+					elementArray[i][j] = elementArray[j][i];
+					elementArray[j][i] = element;
+				}
+			}
+		}
+	}
+	else
+	{
+		//...
+	}
+}
+
+void MatrixMath::Matrix::ConjugateTranspose( void )
+{
+	Transpose();
+
+	for( int i = 0; i < rows; i++ )
+		for( int j = 0; j < cols; j++ )
+			elementArray[i][j]->Conjugate();
+}
+
 bool MatrixMath::Matrix::SetInverse( const Matrix& matrix, bool pseudo /*= false */ )
 {
 	return matrix.GetInverse( *this, pseudo );
@@ -206,7 +238,30 @@ bool MatrixMath::Matrix::GetInverse( Matrix& matrix, bool pseudo /*= false*/ ) c
 
 	if( !inverseExists && pseudo )
 	{
-		// TODO: Use SVD to figure this out?
+		Matrix uMatrix, sMatrix, vMatrix;
+		GetSingularValueDecomposition( uMatrix, sMatrix, vMatrix );
+
+		uMatrix.ConjugateTranspose();
+		vMatrix.ConjugateTranspose();
+
+		Element* zero = GetElementFactory()->Create();
+		zero->SetAdditiveIdentity();
+
+		int j = sMatrix.rows < sMatrix.cols ? sMatrix.rows : sMatrix.cols;
+
+		for( int i = 0; i < j; i++ )
+		{
+			Element* element = sMatrix.elementArray[i][i];
+			if( !element->IsApproximately( zero ) )
+				element->Invert();
+		}
+
+		GetElementFactory()->Destroy( zero );
+
+		sMatrix.Transpose();
+
+		matrix.SetProduct( vMatrix, sMatrix );
+		matrix.MultiplyOnRight( uMatrix );
 	}
 
 	return inverseExists;
@@ -315,6 +370,16 @@ bool MatrixMath::Matrix::SetScale( const Matrix& matrix, const Element* element 
 			elementArray[i][j]->SetProduct( matrix.elementArray[i][j], element );
 
 	return true;
+}
+
+bool MatrixMath::Matrix::MultiplyOnRight( const Matrix& rMatrix )
+{
+	return false; // TODO: Write this.
+}
+
+bool MatrixMath::Matrix::MultiplyOnLeft( const Matrix& lMatrix )
+{
+	return false; // TODO: Write this;
 }
 
 int MatrixMath::Matrix::GetLeadingZerosInRow( int row ) const
