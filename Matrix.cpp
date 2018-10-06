@@ -59,6 +59,54 @@ bool MatrixMath::Matrix::IsSquare( void ) const
 	return( rows == cols ) ? true : false;
 }
 
+bool MatrixMath::Matrix::IsIdentity( void ) const
+{
+	if( !IsSquare() )
+		return false;
+
+	Element* one = GetElementFactory()->Create();
+	one->SetMultiplicativeIdentity();
+
+	Element* zero = GetElementFactory()->Create();
+	zero->SetAdditiveIdentity();
+
+	bool isIdentity = true;
+
+	for( int i = 0; i < rows && isIdentity; i++ )
+	{
+		for( int j = 0; j < cols && isIdentity; j++ )
+		{
+			if( i == i )
+			{
+				if( !elementArray[i][j]->IsApproximately( one ) )
+					isIdentity = false;
+			}
+			else
+			{
+				if( !elementArray[i][j]->IsApproximately( zero ) )
+					isIdentity = false;
+			}
+		}
+	}
+
+	GetElementFactory()->Destroy( one );
+	GetElementFactory()->Destroy( zero );
+
+	return isIdentity;
+}
+
+// For matrices over the reals, this is asking if the matrix is orthogonal.
+bool MatrixMath::Matrix::IsUnitary( void ) const
+{
+	Matrix conjugateTranspose;
+	GetConjugateTranspose( conjugateTranspose );
+
+	Matrix product;
+	product.SetProduct( *this, conjugateTranspose );
+
+	return product.IsIdentity();
+}
+
 bool MatrixMath::Matrix::IsInRowEchelonForm( void ) const
 {
 	return false; // TODO: Write this.
@@ -314,9 +362,69 @@ bool MatrixMath::Matrix::GetLUFactorization( Matrix& lMatrix, Matrix& uMatrix ) 
 	return false; // TODO: Write this.  Can we be numerically stable?
 }
 
-bool MatrixMath::Matrix::GetSingularValueDecomposition( Matrix& uMatrix, Matrix& sMatrix, Matrix& vMatrix ) const
+bool MatrixMath::Matrix::GetQRFactorization( Matrix& qMatrix, Matrix& rMatrix ) const
 {
-	return false; // TODO: Write this.  This can be used to find the pseudo-inverse of a matrix.
+	return false; // TODO: Write this.  Use the Grahm-Schmidt process.
+}
+
+void MatrixMath::Matrix::GetSingularValueDecomposition( Matrix& uMatrix, Matrix& sMatrix, Matrix& vMatrix ) const
+{
+	// TODO: Write this.  This can be used to find the pseudo-inverse of a matrix.
+
+	/*
+	The naive and surely numerically unstable approach is as follows.
+
+	M is our m x n matrix and we want to find U, S and V such that...
+
+	M = U*S*V^{*},
+
+	...where V^{*} is the conjugate transpose, and U (m x s) and V (n x s) are unitary matrices,
+	and S (s x s) is a diagonal matrix with non-negative values on the diagonal.
+	To that end, observe that...
+
+	M*M^{*} = U*S*V^{*}*(V*S^{*}*U^{*}) = U*S*S^{*}*U^{*}.
+
+	Thus, to find U and S, we first find the eigen-value decomposition of M*M^{*} as...
+
+	M*M^{*} = Q*L*Q^{-1}.
+
+	...where the columns of Q contain the eigen-vectors, and the diagonals of L are
+	the corresponding eigen-values.  Now, in some cases (which ones?), the columns of
+	Q can be chosen so that they form an orthonormal basis, at which point, it follows
+	that U=Q since we would have Q^{-1}=Q^{*}, and then the diagonals of S would simply
+	be the square roots of the diagonals of L.  The diagonals of L could all be made
+	positive by negating the corresponding eigen-vectors if necessary.
+
+	All that remains now is to find V.  But this is trivial since we have our original
+	equation M = U*S*V^{*}, which implies that...
+
+	V^{*} = S^{*}*U^{*}*M ==> V = M^{*}*U*S.
+
+	The rows of U and V and the diagonals of S could then be sorted (in unison) so that
+	the diagonals appears in descending order, as is convention.  It has been shown that
+	the SVD of any matrix M exists, and under this sorting condition, is unique.
+
+	Question: Will M*M^{*} always have an EVD for any M?  I've read that the SVD can always
+	be found, but if the EVD doesn't always exist, then what's stated above is not a general
+	solution to finding the SVD.
+	*/
+}
+
+bool MatrixMath::Matrix::GetEigenValueDecomposition( Matrix& qMatrix, Matrix& lMatrix ) const
+{
+	// This would be very hard to write in general as it would involve finding
+	// all of the roots and their multiplicities in the characteristic equation.
+	return false;
+}
+
+void MatrixMath::Matrix::GetNearestOrthogonalMatrix( Matrix& matrix ) const
+{
+	Matrix uMatrix, sMatrix, vMatrix;
+	GetSingularValueDecomposition( uMatrix, sMatrix, vMatrix );
+
+	vMatrix.ConjugateTranspose();
+
+	matrix.SetProduct( uMatrix, vMatrix );
 }
 
 bool MatrixMath::Matrix::SetProduct( const Matrix& lMatrix, const Matrix& rMatrix )

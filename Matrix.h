@@ -28,6 +28,8 @@ public:
 	int GetCols( void ) const { return cols; }
 
 	bool IsSquare( void ) const;
+	bool IsIdentity( void ) const;
+	bool IsUnitary( void ) const;
 
 	bool IsInRowEchelonForm( void ) const;
 	bool IsInReducedRowEchelonForm( void ) const;
@@ -65,8 +67,12 @@ public:
 	bool GetLeftInverse( Matrix& matrix, bool pseudo = false ) const;
 
 	bool GetLUFactorization( Matrix& lMatrix, Matrix& uMatrix ) const;
+	bool GetQRFactorization( Matrix& qMatrix, Matrix& rMatrix ) const;
 
-	bool GetSingularValueDecomposition( Matrix& uMatrix, Matrix& sMatrix, Matrix& vMatrix ) const;
+	void GetSingularValueDecomposition( Matrix& uMatrix, Matrix& sMatrix, Matrix& vMatrix ) const;
+	bool GetEigenValueDecomposition( Matrix& qMatrix, Matrix& lMatrix ) const;
+
+	void GetNearestOrthogonalMatrix( Matrix& matrix ) const;
 
 	bool SetProduct( const Matrix& lMatrix, const Matrix& rMatrix );
 	bool SetSum( const Matrix& lMatrix, const Matrix& rMatrix );
