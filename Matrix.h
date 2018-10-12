@@ -30,7 +30,8 @@ public:
 	bool IsSquare( void ) const;
 	bool IsIdentity( void ) const;
 	bool IsUnitary( void ) const;
-
+	bool IsUpperTriangular( void ) const;
+	bool IsLowerTriangular( void ) const;
 	bool IsInRowEchelonForm( void ) const;
 	bool IsInReducedRowEchelonForm( void ) const;
 
@@ -69,8 +70,9 @@ public:
 	bool GetLUFactorization( Matrix& lMatrix, Matrix& uMatrix ) const;
 	bool GetQRFactorization( Matrix& qMatrix, Matrix& rMatrix ) const;
 
-	void GetSingularValueDecomposition( Matrix& uMatrix, Matrix& sMatrix, Matrix& vMatrix ) const;
+	bool GetSingularValueDecomposition( Matrix& uMatrix, Matrix& sMatrix, Matrix& vMatrix ) const;
 	bool GetEigenValueDecomposition( Matrix& qMatrix, Matrix& lMatrix ) const;
+	bool GetSchurDecomposition( Matrix& qMatrix, Matrix& uMatrix, int max_iterations = 512 ) const;
 
 	void GetNearestOrthogonalMatrix( Matrix& matrix ) const;
 

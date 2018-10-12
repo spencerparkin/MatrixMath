@@ -117,6 +117,32 @@ bool MatrixMath::Matrix::IsInReducedRowEchelonForm( void ) const
 	return false; // TODO: Write this.
 }
 
+bool MatrixMath::Matrix::IsUpperTriangular( void ) const
+{
+	Element* zero = GetElementFactory()->Create();
+	zero->SetAdditiveIdentity();
+
+	bool upperTriangular = true;
+	
+	for( int i = 1; i < rows && upperTriangular; i++ )
+	{
+		for( int j = 0; j < i && j < cols && upperTriangular; j++ )
+		{
+			if( !elementArray[i][j]->IsApproximately( zero ) )
+				upperTriangular = false;
+		}
+	}
+
+	GetElementFactory()->Destroy( zero );
+
+	return upperTriangular;
+}
+
+bool MatrixMath::Matrix::IsLowerTriangular( void ) const
+{
+	return false;
+}
+
 bool MatrixMath::Matrix::HasRow( int row ) const
 {
 	return( 0 <= row && row < rows ) ? true : false;
@@ -243,7 +269,9 @@ void MatrixMath::Matrix::Transpose( void )
 	}
 	else
 	{
-		//...
+		Matrix matrixCopy;
+		GetCopy( matrixCopy );
+		SetTranspose( matrixCopy );
 	}
 }
 
@@ -286,30 +314,7 @@ bool MatrixMath::Matrix::GetInverse( Matrix& matrix, bool pseudo /*= false*/ ) c
 
 	if( !inverseExists && pseudo )
 	{
-		Matrix uMatrix, sMatrix, vMatrix;
-		GetSingularValueDecomposition( uMatrix, sMatrix, vMatrix );
-
-		uMatrix.ConjugateTranspose();
-		vMatrix.ConjugateTranspose();
-
-		Element* zero = GetElementFactory()->Create();
-		zero->SetAdditiveIdentity();
-
-		int j = sMatrix.rows < sMatrix.cols ? sMatrix.rows : sMatrix.cols;
-
-		for( int i = 0; i < j; i++ )
-		{
-			Element* element = sMatrix.elementArray[i][i];
-			if( !element->IsApproximately( zero ) )
-				element->Invert();
-		}
-
-		GetElementFactory()->Destroy( zero );
-
-		sMatrix.Transpose();
-
-		matrix.SetProduct( vMatrix, sMatrix );
-		matrix.MultiplyOnRight( uMatrix );
+		// TODO: Figure this out.  The SVD can be used, I'm told.
 	}
 
 	return inverseExists;
@@ -364,56 +369,70 @@ bool MatrixMath::Matrix::GetLUFactorization( Matrix& lMatrix, Matrix& uMatrix ) 
 
 bool MatrixMath::Matrix::GetQRFactorization( Matrix& qMatrix, Matrix& rMatrix ) const
 {
-	return false; // TODO: Write this.  Use the Grahm-Schmidt process.
+	return false; // TODO: Write this.  Use the Grahm-Schmidt orthogonalization process (a sequence of rejections.)
 }
 
-void MatrixMath::Matrix::GetSingularValueDecomposition( Matrix& uMatrix, Matrix& sMatrix, Matrix& vMatrix ) const
+bool MatrixMath::Matrix::GetSingularValueDecomposition( Matrix& uMatrix, Matrix& sMatrix, Matrix& vMatrix ) const
 {
-	// TODO: Write this.  This can be used to find the pseudo-inverse of a matrix.
+	// TODO: Figure this out.  Can we compute it directly, or do we need to do an eigen-value decomposition of the associated square matrix?
+	//       Does this kind of decomposition exist for all matrices?
 
-	/*
-	The naive and surely numerically unstable approach is as follows.
-
-	M is our m x n matrix and we want to find U, S and V such that...
-
-	M = U*S*V^{*},
-
-	...where V^{*} is the conjugate transpose, and U (m x s) and V (n x s) are unitary matrices,
-	and S (s x s) is a diagonal matrix with non-negative values on the diagonal.
-	To that end, observe that...
-
-	M*M^{*} = U*S*V^{*}*(V*S^{*}*U^{*}) = U*S*S^{*}*U^{*}.
-
-	Thus, to find U and S, we first find the eigen-value decomposition of M*M^{*} as...
-
-	M*M^{*} = Q*L*Q^{-1}.
-
-	...where the columns of Q contain the eigen-vectors, and the diagonals of L are
-	the corresponding eigen-values.  Now, in some cases (which ones?), the columns of
-	Q can be chosen so that they form an orthonormal basis, at which point, it follows
-	that U=Q since we would have Q^{-1}=Q^{*}, and then the diagonals of S would simply
-	be the square roots of the diagonals of L.  The diagonals of L could all be made
-	positive by negating the corresponding eigen-vectors if necessary.
-
-	All that remains now is to find V.  But this is trivial since we have our original
-	equation M = U*S*V^{*}, which implies that...
-
-	V^{*} = S^{*}*U^{*}*M ==> V = M^{*}*U*S.
-
-	The rows of U and V and the diagonals of S could then be sorted (in unison) so that
-	the diagonals appears in descending order, as is convention.  It has been shown that
-	the SVD of any matrix M exists, and under this sorting condition, is unique.
-
-	Question: Will M*M^{*} always have an EVD for any M?  I've read that the SVD can always
-	be found, but if the EVD doesn't always exist, then what's stated above is not a general
-	solution to finding the SVD.
-	*/
+	return false;
 }
 
-bool MatrixMath::Matrix::GetEigenValueDecomposition( Matrix& qMatrix, Matrix& lMatrix ) const
+bool MatrixMath::Matrix::GetEigenValueDecomposition( Matrix& pMatrix, Matrix& dMatrix ) const
 {
-	// This would be very hard to write in general as it would involve finding
-	// all of the roots and their multiplicities in the characteristic equation.
+	Matrix uMatrix, tMatrix;
+
+	if( !GetSchurDecomposition( uMatrix, tMatrix ) )
+		return false;
+
+	// The eigen-values and eigen-vectors of this matrix are now that of the t-matrix.
+	// Now since the t-matrix is upper-triangular, we can read-off the eigen-values trivially
+	// when we consider the characteristic equation.
+
+	dMatrix.SetDimensions( rows, cols );
+	dMatrix.SetIdentity();
+
+	for( int i = 0; i < rows; i++ )
+		dMatrix.SetElement( i, i, tMatrix.GetElement( i, i )->GetCopy() );
+
+	// Now we solve for the eigen-vectors.
+	// TODO: Do that here.
+
+	return false;
+}
+
+bool MatrixMath::Matrix::GetSchurDecomposition( Matrix& uMatrix, Matrix& tMatrix, int max_iterations /*= 512*/ ) const
+{
+	// Here we implement the QR algorithm.  This produces a sequence of matrices,
+	// the first being our matrix, and each matrix similar to the one prior.
+	// Being similar, they all share the same eigen-vectors and eigen-values.
+	// I'm not sure, however, under what conditions the sequence will converge
+	// to the Schur decomposition.
+
+	if( !IsSquare() )
+		return false;
+
+	uMatrix.SetDimensions( rows, cols );
+	uMatrix.SetIdentity();
+
+	GetCopy( tMatrix );
+
+	Matrix rMatrix, qMatrix;
+
+	for( int i = 0; i < max_iterations; i++ )
+	{
+		if( !tMatrix.GetQRFactorization( qMatrix, rMatrix ) )
+			return false;
+
+		tMatrix.SetProduct( rMatrix, qMatrix );
+		uMatrix.MultiplyOnRight( qMatrix );
+
+		if( tMatrix.IsUpperTriangular() )
+			return true;
+	}
+
 	return false;
 }
 
@@ -482,12 +501,16 @@ bool MatrixMath::Matrix::SetScale( const Matrix& matrix, const Element* element 
 
 bool MatrixMath::Matrix::MultiplyOnRight( const Matrix& rMatrix )
 {
-	return false; // TODO: Write this.
+	Matrix matrixCopy;
+	GetCopy( matrixCopy );
+	return SetProduct( matrixCopy, rMatrix );
 }
 
 bool MatrixMath::Matrix::MultiplyOnLeft( const Matrix& lMatrix )
 {
-	return false; // TODO: Write this;
+	Matrix matrixCopy;
+	GetCopy( matrixCopy );
+	return SetProduct( lMatrix, matrixCopy );
 }
 
 int MatrixMath::Matrix::GetLeadingZerosInRow( int row ) const
@@ -531,7 +554,7 @@ void MatrixMath::Matrix::RowReduce( RowOperationList& rowOperationList, bool ful
 	
 	do
 	{
-		size = rowOperationList.size();
+		size = ( int )rowOperationList.size();
 	
 		for( int i = 0; i < rows - 1; i++ )
 		{
